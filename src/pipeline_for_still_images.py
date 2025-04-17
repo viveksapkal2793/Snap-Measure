@@ -9,7 +9,7 @@ from visualize_detections import visualize_detections
 
 def pipeline_for_still_images(
     prompt_user=False,
-    image_path="./sample_imgs/mouse.jpg",
+    image_path="../input_images/mouse.jpg",
     capturing_device_id=None,
     visualize=True,
     scale=8,
