@@ -26,7 +26,7 @@ os.makedirs("../calibration", exist_ok=True)
 if len(images) > 0:
     ret, mtx, dist, rvecs, tvecs = calibrate_camera(
         calib_path,
-        checkerboard_size=(9, 7),
+        checkerboard_size=(24, 32),
         square_size=20.0
     )
     

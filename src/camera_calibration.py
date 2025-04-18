@@ -2,8 +2,9 @@ import numpy as np
 import cv2
 import glob
 import pickle
+import os
 
-def calibrate_camera(images_path, checkerboard_size=(9,7), square_size=20.0):
+def calibrate_camera(images_path, checkerboard_size=(9,7), square_size=20.0, debug=True):
     """
     Calibrate camera using multiple checkerboard images
     
@@ -11,6 +12,7 @@ def calibrate_camera(images_path, checkerboard_size=(9,7), square_size=20.0):
         images_path: Path pattern to calibration images (e.g., "calibration_images/*.jpg")
         checkerboard_size: Number of inner corners (width, height)
         square_size: Size of checkerboard square in mm
+        debug: Whether to show debug information
         
     Returns:
         ret: Calibration accuracy
@@ -36,28 +38,68 @@ def calibrate_camera(images_path, checkerboard_size=(9,7), square_size=20.0):
     imgpoints = []  # 2D points in image plane
     
     # Get list of calibration images
-    images = glob.glob(images_path)
+    successful_images = 0
     
     for fname in images:
         img = cv2.imread(fname)
+        if img is None:
+            print(f"Could not read image: {fname}")
+            continue
+            
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
         # Find the chessboard corners
-        ret, corners = cv2.findChessboardCorners(gray, checkerboard_size, None)
+        # Use more aggressive flags for better detection
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FILTER_QUADS
+        ret, corners = cv2.findChessboardCorners(gray, checkerboard_size, flags)
         
         # If found, add object points, image points
         if ret:
+            successful_images += 1
+            # Refine corner locations
+            corners2 = cv2.cornerSubPix(gray, corners, (11,11), (-1,-1), criteria)
             objpoints.append(objp)
-            imgpoints.append(corners)
+            imgpoints.append(corners2)
             
-            # Optional: Draw and display the corners
-            # cv2.drawChessboardCorners(img, checkerboard_size, corners, ret)
-            # cv2.imshow('img', img)
-            # cv2.waitKey(500)
+            if debug:
+                print(f"Successfully detected corners in: {fname}")
+                # Draw and display the corners
+                img_with_corners = img.copy()
+                cv2.drawChessboardCorners(img_with_corners, checkerboard_size, corners2, ret)
+                
+                # Create a debug directory if it doesn't exist
+                os.makedirs("../calibration_debug", exist_ok=True)
+                
+                # Save the image with corners for debugging
+                base_name = os.path.basename(fname)
+                cv2.imwrite(f"../calibration_debug/corners_{base_name}", img_with_corners)
+        else:
+            if debug:
+                print(f"Failed to detect corners in: {fname}")
+    
+    print(f"Successfully detected checkerboard pattern in {successful_images} out of {len(images)} images")
+    
+    if successful_images == 0:
+        print("ERROR: Could not detect checkerboard pattern in any of the images.")
+        print("Please check if:")
+        print("1. The checkerboard_size is correct (you specified width=%d, height=%d)" % checkerboard_size)
+        print("2. The checkerboard is fully visible in the images")
+        print("3. The images are clear and not blurry")
+        return None, None, None, None, None
     
     # Calibrate camera
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(
         objpoints, imgpoints, gray.shape[::-1], None, None)
+    
+    # Calculate reprojection error
+    mean_error = 0
+    for i in range(len(objpoints)):
+        imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
+        error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
+        mean_error += error
+    
+    print(f"Total reprojection error: {mean_error/len(objpoints)}")
     
     return ret, mtx, dist, rvecs, tvecs
 
