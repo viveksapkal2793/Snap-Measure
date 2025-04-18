@@ -59,15 +59,6 @@ output_img = pipeline_for_still_images(
     reference_object_dimensions=(8.56, 5.4),  # Credit card dimensions in cm
     visualize=True
 )
-
-# Using camera calibration
-output_img = pipeline_for_still_images(
-    prompt_user=False,
-    image_path="input_images/object.jpg",
-    use_calibration=True,
-    calibration_file="../calibration/camera_calibration.pkl",
-    visualize=True
-)
 ```
 
 ### Command Line Usage
@@ -79,12 +70,6 @@ python pipeline_for_still_images.py
 
 # Using custom reference object (e.g., credit card)
 python pipeline_for_still_images.py --use_reference_object --reference_width=8.56 --reference_height=5.4 --image_path="../input_images/credit_card.jpg"
-
-# Using camera calibration
-python pipeline_for_still_images.py --use_calibration --calibration_file="../calibration/camera_calibration.pkl" --image_path="../input_images/object.jpg"
-
-# Camera calibration
-python calibrate_camera_script.py
 ```
 
 ## 📋 How It Works
@@ -106,12 +91,6 @@ python calibrate_camera_script.py
 5. **Object Detection**: Detect the object to be measured
 6. **Dimension Calculation**: Calculate dimensions based on the reference object
 7. **Visualization**: Display results with annotations
-
-### Camera Calibration Method
-1. **Calibration**: Capture multiple images of a checkerboard pattern
-2. **Parameter Calculation**: Calculate camera matrix and distortion coefficients
-3. **Image Undistortion**: Apply undistortion to new images
-4. **Object Measurement**: Use one of the above methods with undistorted images
 
 ## 📊 Sample Results
 
