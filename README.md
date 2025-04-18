@@ -121,10 +121,10 @@ Here are some example outputs from Snap-Measure:
 *Measuring a computer mouse using the A4 paper method*
 
 ![Lid Measurement](results/lid_measure.jpeg)
-*Using a credit card as a reference object*
+*Measuring a lid using the A4 paper method*
 
 ![Jar Measurement](results/jar_measure.jpeg)
-*Visualization with error metrics when actual dimensions are provided*
+*Measuring a jar using the A4 paper method*
 
 ## ⚠️ Important Notes
 
