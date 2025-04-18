@@ -6,7 +6,7 @@ from perspective_transform import perspective_transform
 from locate_object_of_interest import find_object_of_interest
 from calculate_dimensions import calculate_dimensions
 from visualize_detections import visualize_detections
-
+from error_calc import read_actual_dimensions, calculate_error_metrics, add_error_metrics_to_image 
 import argparse
 import cv2
 import numpy as np
@@ -141,7 +141,27 @@ def pipeline_for_still_images(
         perspective_transformed_img = perspective_transform(img, corners)
         convex_hull = find_object_of_interest(perspective_transformed_img)
         output_img_to_show = visualize_detections(perspective_transformed_img, convex_hull)
-    
+
+        # Get the calculated dimensions from visualize_detections
+        output_img_to_show, calculated_dimensions = visualize_detections(
+            perspective_transformed_img, convex_hull, return_dimensions=True)
+        
+        # Check if there's a corresponding text file with actual dimensions
+        actual_dims = read_actual_dimensions(image_path)
+        
+        if actual_dims and calculated_dimensions:
+            # Calculate error metrics
+            error_metrics = calculate_error_metrics(calculated_dimensions, actual_dims)
+            print(f"Actual dimensions: {actual_dims[0]:.1f} x {actual_dims[1]:.1f} cm")
+            print(f"Measured dimensions: {calculated_dimensions[0]:.1f} x {calculated_dimensions[1]:.1f} cm")
+            print(f"Measurement errors:")
+            print(f"  Absolute: Width = {error_metrics['abs_error_width']:.2f} cm, Height = {error_metrics['abs_error_height']:.2f} cm")
+            print(f"  Relative: Width = {error_metrics['rel_error_width']:.1f}%, Height = {error_metrics['rel_error_height']:.1f}%")
+            
+            # Add error metrics to the image
+            output_img_to_show = add_error_metrics_to_image(
+                output_img_to_show, calculated_dimensions, error_metrics)
+        
     if visualize is True:
         matplotlib_imshow(
             "Detected Object and its Calculated measurements \n(Width and Height) in cm",

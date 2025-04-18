@@ -5,19 +5,18 @@ from imutils import rotate_bound
 
 def greetings():
     print(
-        """Greetings!!! Before you proceed to use this application please note the following -- 
-    1. Since the A4 paper is white, placing white objects on the paper will 
-    most likely produce faulty outcome.
-    2. Place only one object on the A4 paper at a time. To reduce false detection, only the highest 
-    perimeter object is filtered from all the possible detections.
-    3. This application only uses OpenCV and no deep learning model. So, due 
-    to constraints of classical computer vision the results may not be 
-    100% accurate. Long story short, Use at your own risk.
+"""Welcome to Snap-Measure! Please be aware of the following limitations:
+    1. The application may not accurately detect white or light-colored objects 
+       placed on the white A4 paper background.
+    2. For best results, place only a single object on the paper at a time. 
+       The system identifies only the object with the largest perimeter.
+    3. This tool uses traditional computer vision techniques (not AI/deep learning), 
+       so measurements may have some variance from actual dimensions.
 
-To improve the chance of correct recognition and measurement you can do the following --
-    1. Capture the image in a clean background.
-    2. Try to fit the whole A4 paper inside the frame.
-    3. Lighting condition should not be too dark or too bright."""
+For optimal measurement accuracy:
+    1. Use a clean, uncluttered background in your images.
+    2. Ensure the entire A4 paper is visible within the camera frame.
+    3. Take photos in well-balanced lighting - avoid shadows, glare or dim conditions."""
     )
 
 def read_image(img_path):
