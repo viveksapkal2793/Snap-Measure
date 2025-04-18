@@ -10,12 +10,12 @@ from visualize_detections import visualize_detections
 import argparse
 import cv2
 import numpy as np
-from reference_object import detect_reference_object, calculate_pixels_per_metric, measure_object, draw_reference_and_measurements
+from reference_object import detect_reference_object, calculate_pixels_per_metric, measure_object, draw_reference_and_measurements, detect_reference_object_debug
 from camera_calibration import load_calibration, undistort_image
 
 def pipeline_for_still_images(
     prompt_user=False,
-    image_path="../input_images/mouse.jpg",
+    image_path="../input_images/jar.jpg",
     capturing_device_id=None,
     visualize=True,
     scale=8,
@@ -56,19 +56,36 @@ def pipeline_for_still_images(
         # Use the reference object method
         # Preprocess the image
         preprocessed_img = preprocess(img)
+
+        # Try to detect reference object with more lenient parameters
+        reference_contour = detect_reference_object_debug(
+            preprocessed_img, 
+            min_area=50,  # Even more lenient minimum area
+            max_area=preprocessed_img.shape[0] * preprocessed_img.shape[1] * 0.9,  # 90% of image
+            save_debug=True,
+            image_filename=image_path  # Pass the image filename
+        )
         
-        # Find all contours
-        gray = cv2.cvtColor(preprocessed_img, cv2.COLOR_BGR2GRAY)
+        if reference_contour is None:
+            print("Error: Could not detect reference object")
+            return img
+        
+        # Check if image is already grayscale
+        if len(preprocessed_img.shape) == 2 or (len(preprocessed_img.shape) == 3 and preprocessed_img.shape[2] == 1):
+            gray = preprocessed_img  # Already grayscale
+        else:
+            gray = cv2.cvtColor(preprocessed_img, cv2.COLOR_BGR2GRAY)
+        
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         # Detect reference object (assuming it's one of the larger objects)
-        reference_contour = detect_reference_object(preprocessed_img, contours)
+        # reference_contour = detect_reference_object(preprocessed_img, contours)
         
-        if reference_contour is None:
-            print("Error: Could not detect reference object")
-            return img
+        # if reference_contour is None:
+        #     print("Error: Could not detect reference object")
+        #     return img
         
         # Calculate pixels per metric
         pixels_per_unit, ref_px_dims, ref_dims = calculate_pixels_per_metric(
@@ -80,12 +97,31 @@ def pipeline_for_still_images(
         
         # Find the largest non-reference object (object of interest)
         # Exclude the reference object from consideration
-        other_contours = [c for c in contours if cv2.contourArea(c) < cv2.contourArea(reference_contour)]
-        other_contours = sorted(other_contours, key=cv2.contourArea, reverse=True)
+        # other_contours = [c for c in contours if cv2.contourArea(c) < cv2.contourArea(reference_contour)]
+        # other_contours = sorted(other_contours, key=cv2.contourArea, reverse=True)
+        
+        # if not other_contours:
+        #     print("Error: Could not detect any objects besides the reference")
+        #     return img
+
+        ref_area = cv2.contourArea(reference_contour)
+        other_contours = []
+        
+        for cnt in contours:
+            cnt_area = cv2.contourArea(cnt)
+            # Skip contours that are too similar to reference object
+            if abs(cnt_area - ref_area) / max(cnt_area, ref_area) > 0.2:  # If area differs by more than 20%
+                other_contours.append(cnt)
         
         if not other_contours:
             print("Error: Could not detect any objects besides the reference")
-            return img
+            # Draw just the reference for debugging
+            output_img = img.copy()
+            cv2.drawContours(output_img, [reference_contour], 0, (0, 255, 0), 2)
+            return output_img
+            
+        # Sort by area (largest first)
+        other_contours.sort(key=cv2.contourArea, reverse=True)
             
         object_contour = other_contours[0]
         

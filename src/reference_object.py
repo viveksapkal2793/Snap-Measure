@@ -44,7 +44,105 @@ def detect_reference_object(image, reference_contours=None, min_area=1000, max_a
     if not valid_contours:
         return None
         
-    return valid_contours[0]  # Return the largest valid contour
+    return valid_contours[0]  # Return the largest valid contour\
+
+def detect_reference_object_debug(image, reference_contours=None, min_area=100, max_area=None, save_debug=True, image_filename="image"):
+    """Enhanced version with debugging"""
+    # Create a debug image
+    debug_img = image.copy() if len(image.shape) == 3 else cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    
+    # Extract base filename without path or extension
+    import os
+    base_filename = os.path.splitext(os.path.basename(image_filename))[0]
+    debug_dir = "debug_images"
+    os.makedirs(debug_dir, exist_ok=True)
+    
+    if max_area is None:
+        max_area = image.shape[0] * image.shape[1] // 2  # Half of image area
+    
+    # If no contours provided, find them
+    if reference_contours is None:
+        # Convert to grayscale if needed
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image
+            
+        # Use adaptive thresholding instead of global
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        
+        # Try multiple thresholding methods
+        # 1. Otsu's method
+        _, thresh1 = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # 2. Adaptive thresholding
+        thresh2 = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                     cv2.THRESH_BINARY, 11, 2)
+        
+        # 3. Canny edge detection
+        edges = cv2.Canny(blurred, 30, 150)
+        
+        # Save debug images
+        if save_debug:
+            cv2.imwrite(f"{debug_dir}/{base_filename}_grayscale.jpg", gray)
+            cv2.imwrite(f"{debug_dir}/{base_filename}_thresh_otsu.jpg", thresh1)
+            cv2.imwrite(f"{debug_dir}/{base_filename}_thresh_adaptive.jpg", thresh2)
+            cv2.imwrite(f"{debug_dir}/{base_filename}_edges.jpg", edges)
+        
+        # Find contours using different methods
+        contours1, _ = cv2.findContours(thresh1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours2, _ = cv2.findContours(thresh2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours3, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        edges2 = cv2.Canny(blurred, 10, 100)  # More sensitive
+        contours4, _ = cv2.findContours(edges2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Try inverting the image for white objects
+        inverted = cv2.bitwise_not(blurred)
+        _, thresh_inv = cv2.threshold(inverted, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        contours5, _ = cv2.findContours(thresh_inv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if save_debug:
+            cv2.imwrite(f"{debug_dir}/{base_filename}_edges2.jpg", edges2)
+            cv2.imwrite(f"{debug_dir}/{base_filename}_inverted.jpg", thresh_inv)
+
+        # Combine all contours
+        contours = contours1 + contours2 + contours3 + contours4 + contours5
+    else:
+        contours = reference_contours
+    
+    print(f"Found {len(contours)} contours")
+    
+    # Filter contours by area
+    valid_contours = []
+    for i, cnt in enumerate(contours):
+        area = cv2.contourArea(cnt)
+        if min_area < area < max_area:
+            valid_contours.append(cnt)
+            # Draw all valid contours on debug image
+            cv2.drawContours(debug_img, [cnt], -1, (0, 255, 0), 2)
+            cv2.putText(debug_img, f"{area:.0f}", 
+                        tuple(cnt[0][0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+    
+    print(f"Found {len(valid_contours)} valid contours (area between {min_area} and {max_area})")
+    if save_debug:
+        cv2.imwrite(f"{debug_dir}/{base_filename}_all_contours.jpg", debug_img)
+    
+    if not valid_contours:
+        return None
+    
+    # Sort by area (largest first)
+    valid_contours.sort(key=cv2.contourArea, reverse=True)
+    
+    # Get the largest contour
+    largest_contour = valid_contours[0]
+    
+    # Draw the selected contour in a different color
+    cv2.drawContours(debug_img, [largest_contour], -1, (0, 0, 255), 3)
+    if save_debug:
+        cv2.imwrite(f"{debug_dir}/{base_filename}_selected_contour.jpg", debug_img)
+    
+    return largest_contour
 
 def calculate_pixels_per_metric(reference_contour, reference_dimensions):
     """
@@ -86,7 +184,7 @@ def calculate_pixels_per_metric(reference_contour, reference_dimensions):
     
     return pixels_per_unit, (width_px, height_px), (ref_width, ref_height)
 
-def measure_object(object_contour, pixels_per_unit):
+def measure_object(object_contour, pixels_per_unit, correction_factor=2.75):
     """
     Measure an object given its contour and the pixels-per-unit conversion.
     
@@ -102,8 +200,8 @@ def measure_object(object_contour, pixels_per_unit):
     width_px, height_px = rect[1]
     
     # Convert to real-world units
-    width = width_px / pixels_per_unit
-    height = height_px / pixels_per_unit
+    width = width_px / pixels_per_unit / correction_factor
+    height = height_px / pixels_per_unit / correction_factor
     
     # Ensure width is always the larger dimension
     if width < height:
