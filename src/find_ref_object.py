@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
-from reorder_corner_points import reorder
+from corner_pts_reoder import reorder
 
 def contour_perimeter(cnt):
     return cv.arcLength(cnt, closed=True)

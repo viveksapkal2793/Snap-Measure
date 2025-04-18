@@ -1,16 +1,16 @@
 from matplotlib_imshow import matplotlib_imshow
-from read_or_capture import read_or_capture
-from preprocessing import preprocess
-from locate_reference_object import find_corners
-from perspective_transform import perspective_transform
-from locate_object_of_interest import find_object_of_interest
+from get_img import read_or_capture
+from img_preproc import preprocess
+from find_ref_object import find_corners
+from trans_prespec import perspective_transform
+from find_object import find_object_of_interest
 from calculate_dimensions import calculate_dimensions
-from visualize_detections import visualize_detections
+from viz_detec import visualize_detections
 from error_calc import read_actual_dimensions, calculate_error_metrics, add_error_metrics_to_image 
 import argparse
 import cv2
 import numpy as np
-from reference_object import detect_reference_object, calculate_pixels_per_metric, measure_object, draw_reference_and_measurements, detect_reference_object_debug
+from ref_object import detect_reference_object, calculate_pixels_per_metric, measure_object, draw_reference_and_measurements, detect_reference_object_debug
 from camera_calibration import load_calibration, undistort_image
 
 def pipeline_for_still_images(
