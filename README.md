@@ -1,79 +1,3 @@
-<!-- --------------------------------------------------
-# VisionMeasure: Object Dimension Measurement with OpenCV
-----------------------------------------------
-
-----------------------------------------
-## Project Goal
-
-The goal is to develop a system using OpenCV that can be used to reliably measure the dimension of various types of objects in real time using the presence of a known object (an object whose dimension is known) in the frame. 
-
------------------------------------------------
-
-## Current Status, Usage, and Project Description
-
-The object to measure should be placed on an A4 paper whose dimensions are known (210 x 297 mm). 
-
-### Caution !!!
-
-Before you proceed to use this application please note the following -- 
-    1. Since the A4 paper is white, placing white objects on the paper will 
-    most likely produce a faulty outcome.
-    2. Place only one object on the A4 paper at a time. To reduce false detection, only the highest 
-    perimeter object is filtered from all the possible detections.
-    3. This application only uses OpenCV and no deep learning model. So, due 
-    to the constraints of classical computer vision, the results may not be 
-    100% accurate. Long story short, Use at your own risk.
-
-To improve the chance of correct recognition and measurement you can do the following --
-    1. Capture the image on a clean background.
-    2. Try to fit the whole A4 paper inside the frame.
-    3. Lighting conditions should not be too dark or too bright.
-
-### Usage
-
-The current implementation has a Python script named `pipeline_for_still_images.py`. 
-
-Run this script for detecting objects of interest from a still image and finding the objects' dimensions (width, height) in cm.
-
-    Object of interest - Largest perimeter object placed on top of the A4 paper.
-
-**Args**:
-    
-    prompt_user: whether to prompt the user for image path or, device id. (default: False)
-    
-    image_path: to use a stock/pre-captured image instead of prompting the user. (default: "./sample_imgs/paint_brush.jpeg")
-    
-    capturing_device_id: to capture a live image instead of prompting or loading a stock one. (default: None)
-    
-    visualize: whether to show the output image containing the info of detections. (default: True)
-    
-    scale: matplotlib_imshow() function visualization scale. (default: 8)
-
-**Returns**: The output image (a rotated bounding box is drawn around the object of interest. The calculated dimensions (width, height) are also shown on the output image).
-
-#### Demo of using the application
-
-- Image used
-<img src="./sample_imgs/tennis_ball.jpeg" height=600 width=400>
-
-- Running the script
-<img src="./launch_vision_measure_demo.png">
-
-- Result
-<img src="./detections/tennis_ball_dimensions.png" height=600 width=700>
-
--------------------------------------------------
-
-## Future Prospect
-
-1. **Real-time detection**: measurement from live capture (currently I don't have a USB Webcam so can't implement it right now).
-2. **Dimension Verification**: a validation step can be introduced to ensure the accuracy of the measured dimensions. This could involve comparing the measured dimensions to ground-truth values or using multiple reference objects for calibration.
-3. **Custom reference object**: Use a reference object of the user's choosing. 
-4. **User Interface**: a simple graphical user interface (GUI) to input images or videos, display the results, and provide some options for customization.
-
------------------------------------------------------ -->
-
-
 # Snap-Measure
 
 [![Python](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
@@ -83,12 +7,18 @@ A computer vision system for measuring object dimensions using OpenCV without re
 
 ## 🎯 Project Overview
 
-Snap-Measure accurately calculates the physical dimensions (width and height) of objects placed on an A4 paper. The system uses the known dimensions of A4 paper (210 x 297 mm) as a reference to calibrate measurements.
+Snap-Measure accurately calculates the physical dimensions (width and height) of objects using computer vision techniques. The system supports multiple measurement methods:
+
+1. **A4 Paper Reference**: Place objects on an A4 paper (210 x 297 mm) for automatic calibration
+2. **Custom Reference Objects**: Use any object of known dimensions as a reference
+3. **Camera Calibration**: Apply camera calibration for more accurate measurements
 
 ### Key Features
 
 - Measure object dimensions in centimeters with good accuracy
 - Works with still images (pre-captured or taken through webcam)
+- Multiple measurement approaches (A4 paper, custom reference object, camera calibration)
+- Error metrics calculation when actual dimensions are provided
 - Uses purely OpenCV-based computer vision techniques
 - Visualizes results with bounding boxes and dimension labels
 
@@ -114,33 +44,52 @@ Run the main pipeline script to analyze an image:
 ```python
 from src.pipeline_for_still_images import pipeline_for_still_images
 
-# Using a pre-captured image
+# Using a pre-captured image with A4 paper method
 output_img = pipeline_for_still_images(
     prompt_user=False,
     image_path="input_images/mouse.jpg",
     visualize=True
 )
 
-# OR capture a live image using webcam
+# Using a custom reference object
 output_img = pipeline_for_still_images(
     prompt_user=False,
-    capturing_device_id=0,
+    image_path="input_images/credit_card.jpg",
+    use_reference_object=True,
+    reference_object_dimensions=(8.56, 5.4),  # Credit card dimensions in cm
     visualize=True
 )
 
-# OR let the script prompt you for options
-output_img = pipeline_for_still_images(prompt_user=True)
+# Using camera calibration
+output_img = pipeline_for_still_images(
+    prompt_user=False,
+    image_path="input_images/object.jpg",
+    use_calibration=True,
+    calibration_file="../calibration/camera_calibration.pkl",
+    visualize=True
+)
 ```
 
 ### Command Line Usage
 
 ```bash
+# Basic usage with A4 paper method
 cd src
 python pipeline_for_still_images.py
+
+# Using custom reference object (e.g., credit card)
+python pipeline_for_still_images.py --use_reference_object --reference_width=8.56 --reference_height=5.4 --image_path="../input_images/credit_card.jpg"
+
+# Using camera calibration
+python pipeline_for_still_images.py --use_calibration --calibration_file="../calibration/camera_calibration.pkl" --image_path="../input_images/object.jpg"
+
+# Camera calibration
+python calibrate_camera_script.py
 ```
 
 ## 📋 How It Works
 
+### A4 Paper Method
 1. **Image Acquisition**: Load a saved image or capture one using a webcam
 2. **Preprocessing**: Convert to grayscale, apply thresholding and morphological operations
 3. **Reference Object Detection**: Detect the A4 paper in the image
@@ -149,6 +98,34 @@ python pipeline_for_still_images.py
 6. **Dimension Calculation**: Measure the object's dimensions using the known A4 paper size
 7. **Visualization**: Display the results with dimension annotations
 
+### Custom Reference Object Method
+1. **Image Acquisition**: Load a saved image with both reference object and target object
+2. **Preprocessing**: Apply image preprocessing techniques
+3. **Reference Detection**: Detect the reference object of known dimensions
+4. **Pixels-per-Unit Calculation**: Calculate the pixels-to-centimeters ratio
+5. **Object Detection**: Detect the object to be measured
+6. **Dimension Calculation**: Calculate dimensions based on the reference object
+7. **Visualization**: Display results with annotations
+
+### Camera Calibration Method
+1. **Calibration**: Capture multiple images of a checkerboard pattern
+2. **Parameter Calculation**: Calculate camera matrix and distortion coefficients
+3. **Image Undistortion**: Apply undistortion to new images
+4. **Object Measurement**: Use one of the above methods with undistorted images
+
+## 📊 Sample Results
+
+Here are some example outputs from Snap-Measure:
+
+![Mouse Measurement](results/mouse_measure.jpeg)
+*Measuring a computer mouse using the A4 paper method*
+
+![Lid Measurement](results/lid_measure.jpeg)
+*Using a credit card as a reference object*
+
+![Jar Measurement](results/jar_measure.jpeg)
+*Visualization with error metrics when actual dimensions are provided*
+
 ## ⚠️ Important Notes
 
 For best results:
@@ -156,16 +133,18 @@ For best results:
 - **Avoid white objects** on the white A4 paper (poor contrast causes detection issues)
 - Place **only one object** on the paper at a time
 - Capture images in **good lighting conditions** (not too bright, not too dark)
-- Ensure the **entire A4 paper** fits within the frame
+- Ensure the **entire reference object** fits within the frame
 - Use a **clean background** for better detection
+- When using the reference object method, ensure the reference and target objects are on the same plane
 
 ## 🔮 Future Improvements
 
 1. **Real-time Detection**: Enable continuous measurement from video feed
 2. **Multiple Object Support**: Detect and measure several objects simultaneously
-3. **Custom Reference Objects**: Allow users to specify different reference objects
-4. **Dimension Verification**: Add validation methods for improved accuracy
+3. **Machine Learning Integration**: Add optional ML models for better object detection
+4. **Mobile App**: Develop a mobile application for on-the-go measurements
 5. **Graphical User Interface**: Develop a user-friendly GUI
+6. **3D Measurements**: Extend to support volume and depth measurements
 
 ## 🤝 Contributing
 
