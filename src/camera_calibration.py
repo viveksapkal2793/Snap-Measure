@@ -19,6 +19,13 @@ def calibrate_camera(images_path, checkerboard_size=(9,7), square_size=20.0):
         rvecs: Rotation vectors
         tvecs: Translation vectors
     """
+    
+    images = glob.glob(images_path)
+    print(f"Found {len(images)} images at path: {images_path}")
+    if len(images) == 0:
+        print("ERROR: No images found! Check your path and image format.")
+        return None, None, None, None, None
+    
     # Prepare object points (0,0,0), (1,0,0), (2,0,0) ...
     objp = np.zeros((checkerboard_size[0] * checkerboard_size[1], 3), np.float32)
     objp[:,:2] = np.mgrid[0:checkerboard_size[0], 0:checkerboard_size[1]].T.reshape(-1, 2)
